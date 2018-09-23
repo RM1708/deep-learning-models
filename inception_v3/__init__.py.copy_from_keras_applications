@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import keras
-
 _KERAS_BACKEND = None
 _KERAS_ENGINE = None
 _KERAS_LAYERS = None

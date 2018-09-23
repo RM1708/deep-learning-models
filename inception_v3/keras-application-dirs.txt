@@ -1,0 +1,21 @@
+(20:00:41) rm@ubuntu:~/.../site-packages/keras/applications$ pwd
+/home/rm/anaconda3/envs/tensorflow/lib/python3.6/site-packages/keras/applications
+
+(20:00:44) rm@ubuntu:~/.../site-packages/keras/applications$ ls
+densenet.py        inception_resnet_v2.py  __init__.py   mobilenetv2.py  __pycache__  vgg16.py  xception.py
+imagenet_utils.py  inception_v3.py         mobilenet.py  nasnet.py       resnet50.py  vgg19.py
+
+(20:00:47) rm@ubuntu:~/.../site-packages/keras/applications$ cd ../../keras_applications/
+
+(20:04:14) rm@ubuntu:~/.../python3.6/site-packages/keras_applications$ ls
+densenet.py        inception_resnet_v2.py  __init__.py   mobilenet_v2.py  __pycache__  vgg16.py  xception.py
+imagenet_utils.py  inception_v3.py         mobilenet.py  nasnet.py        resnet50.py  vgg19.py
+
+(20:04:20) rm@ubuntu:~/.../python3.6/site-packages/keras_applications$ pwd
+/home/rm/anaconda3/envs/tensorflow/lib/python3.6/site-packages/keras_applications
+
+(20:46:33) rm@ubuntu:~/keras_fchollet_models/inception_v3$ diff /home/rm/anaconda3/envs/tensorflow/lib/python3.6/site-packages/keras_applications/__init__.py __init__.py 
+(20:50:56) rm@ubuntu:~/keras_fchollet_models/inception_v3$ 
+
+
+
