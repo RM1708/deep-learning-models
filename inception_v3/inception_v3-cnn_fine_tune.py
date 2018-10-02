@@ -1,27 +1,36 @@
-"""Inception V3 model for Keras.
+# -*- coding: utf-8 -*-
+'''
+@DEFECT
+Throws:
+    ValueError: Negative dimension size caused by subtracting 3 from 1 for 
+    'conv2d_2/convolution' (op: 'Conv2D') with input shapes: 
+        [?,1,149,32], [3,3,32,32].
+        
+Problem occurs:  
+    (NOTE: Line nos are likely to differ, owing to editing. Locate the statements)
+  File "/home/rm/github-cnn_fine_tune/inception_v3.py", line 273, in <module>
+    model = inception_v3_model(img_rows, img_cols, channel, num_classes)
 
-Note that the input image format for this model is different than for
-the VGG16 and ResNet models (299x299 instead of 224x224),
-and that the input preprocessing function is also different (same as Xception).
+  File "/home/rm/github-cnn_fine_tune/inception_v3.py", line 93, in inception_v3_model
+    x = conv2d_bn(x, 32, 3, 3, border_mode='valid')
 
-# Reference
-
-- [Rethinking the Inception Architecture for Computer Vision](
-    http://arxiv.org/abs/1512.00567)
-
-@COPIED From:
-/home/rm/anaconda3/envs/tensorflow/lib/python3.6/site-packages/keras_applications
- - and amended.
-
-@RM. See changes below
-
-"""
+  File "/home/rm/github-cnn_fine_tune/inception_v3.py", line 67, in conv2d_bn
+    name=conv_name)(x)
+    
+@OBSERVATION:
+    See the statement:
+        img_input = Input(shape=(channel, img_rows, img_cols))
+        
+    It seems that Image is supposed to be in Theano format - channels as 
+    dimension 0. The calling function sends it in TensorFlow format - channel
+    as dimension 3.
+'''
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import os
-
+#
 ###########
 #RM
 import keras
@@ -35,53 +44,23 @@ models = get_keras_submodule('models')
 keras_utils = get_keras_submodule('utils')
 
 ########################
-#RM
-#Commented ou
-#from . import imagenet_utils
-#from .imagenet_utils import decode_predictions
-#from .imagenet_utils import _obtain_input_shape
-
-################################################
-#RM
-#Added
-import keras.applications.imagenet_utils as imagenet_utils
-from keras.applications.imagenet_utils import decode_predictions
+#import keras.applications.imagenet_utils as imagenet_utils
+#from keras.applications.imagenet_utils import decode_predictions
 from keras_applications.imagenet_utils import _obtain_input_shape
 ################################################
 
 
-WEIGHTS_PATH = (
-    'https://github.com/fchollet/deep-learning-models/'
-    'releases/download/v0.5/'
-    'inception_v3_weights_tf_dim_ordering_tf_kernels.h5')
-WEIGHTS_PATH_NO_TOP = (
-    'https://github.com/fchollet/deep-learning-models/'
-    'releases/download/v0.5/'
-    'inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5')
+CHANNEL_AXIS = 3
 
-
-def conv2d_bn(x,
-              filters,
-              num_row,
-              num_col,
-              padding='same',
-              strides=(1, 1),
+def conv2d_bn(x, \
+            nb_filter, \
+            nb_row, \
+            nb_col, \
+              padding='same', \
+              strides=(1, 1), \
               name=None):
-    """Utility function to apply conv + BN.
-
-    # Arguments
-        x: input tensor.
-        filters: filters in `Conv2D`.
-        num_row: height of the convolution kernel.
-        num_col: width of the convolution kernel.
-        padding: padding mode in `Conv2D`.
-        strides: strides in `Conv2D`.
-        name: name of the ops; will become `name + '_conv'`
-            for the convolution and `name + '_bn'` for the
-            batch norm layer.
-
-    # Returns
-        Output tensor after applying `Conv2D` and `BatchNormalization`.
+    """
+    Utility function to apply conv + BN for Inception V3.
     """
     if name is not None:
         bn_name = name + '_bn'
@@ -89,69 +68,39 @@ def conv2d_bn(x,
     else:
         bn_name = None
         conv_name = None
-    if backend.image_data_format() == 'channels_first':
-        bn_axis = 1
-    else:
-        bn_axis = 3
-    x = layers.Conv2D(filters, \
-                        (num_row, num_col),
+#    bn_axis = 1
+    bn_axis = CHANNEL_AXIS
+    x = layers.Conv2D(nb_filter, \
+                        (nb_row, nb_col),
                         strides=strides,
-                        padding=padding,
                         use_bias=False,
+                        padding=padding,
                         name=conv_name)(x)
+
     x = layers.BatchNormalization(axis=bn_axis, scale=False, name=bn_name)(x)
     x = layers.Activation('relu', name=name)(x)
     return x
 
-
-def InceptionV3(include_top=True,
+#def inception_v3_model(img_rows, img_cols, channel=1, num_classes=None):
+def InceptionV3(img_rows, img_cols, channel=1, num_classes=1000,
+                include_top=True,
                 weights='imagenet',
                 input_tensor=None,
                 input_shape=None,
-                pooling=None,
-                classes=1000):
-    """Instantiates the Inception v3 architecture.
+                pooling=None):
+    """
+    Inception-V3 Model for Keras
 
-    Optionally loads weights pre-trained on ImageNet.
-    Note that the data format convention used by the model is
-    the one specified in your Keras config at `~/.keras/keras.json`.
+    Model Schema is based on 
+    https://github.com/fchollet/deep-learning-models/blob/master/inception_v3.py
 
-    # Arguments
-        include_top: whether to include the fully-connected
-            layer at the top of the network.
-        weights: one of `None` (random initialization),
-              'imagenet' (pre-training on ImageNet),
-              or the path to the weights file to be loaded.
-        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
-            to use as image input for the model.
-        input_shape: optional shape tuple, only to be specified
-            if `include_top` is False (otherwise the input shape
-            has to be `(299, 299, 3)` (with `channels_last` data format)
-            or `(3, 299, 299)` (with `channels_first` data format).
-            It should have exactly 3 inputs channels,
-            and width and height should be no smaller than 139.
-            E.g. `(150, 150, 3)` would be one valid value.
-        pooling: Optional pooling mode for feature extraction
-            when `include_top` is `False`.
-            - `None` means that the output of the model will be
-                the 4D tensor output of the
-                last convolutional layer.
-            - `avg` means that global average pooling
-                will be applied to the output of the
-                last convolutional layer, and thus
-                the output of the model will be a 2D tensor.
-            - `max` means that global max pooling will
-                be applied.
-        classes: optional number of classes to classify images
-            into, only to be specified if `include_top` is True, and
-            if no `weights` argument is specified.
+    ImageNet Pretrained Weights 
+    https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_th_dim_ordering_th_kernels.h5
 
-    # Returns
-        A Keras model instance.
-
-    # Raises
-        ValueError: in case of invalid argument for `weights`,
-            or invalid input shape.
+    Parameters:
+      img_rows, img_cols - resolution of inputs
+      channel - 1 for grayscale, 3 for color 
+      num_classes - number of class labels for our classification task
     """
     if not (weights in {'imagenet', None} or os.path.exists(weights)):
         raise ValueError('The `weights` argument should be either '
@@ -159,7 +108,7 @@ def InceptionV3(include_top=True,
                          '(pre-training on ImageNet), '
                          'or the path to the weights file to be loaded.')
 
-    if weights == 'imagenet' and include_top and classes != 1000:
+    if weights == 'imagenet' and include_top and num_classes != 1000:
         raise ValueError('If using `weights` as `"imagenet"` with `include_top`'
                          ' as true, `classes` should be 1000')
 
@@ -183,17 +132,11 @@ def InceptionV3(include_top=True,
         else:
             img_input = input_tensor
             
-    assert(img_input.shape[0].value == None)
-    assert(img_input.shape[1].value == IMG_ROWS)
-    assert(img_input.shape[2].value == IMG_COLS)
-    assert(img_input.shape[3].value == NO_OF_CHANNELS)
-
     if backend.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
         channel_axis = 3
-
-######################################################
+    ##########################################################
     x = conv2d_bn(img_input, 32, 3, 3, strides=(2, 2), padding='valid')
     x = conv2d_bn(x, 32, 3, 3, padding='valid')
     x = conv2d_bn(x, 64, 3, 3)
@@ -427,18 +370,22 @@ def InceptionV3(include_top=True,
         print("DONE: ", name)
     # ------------- OK ------------------------
 
-    if include_top:
-        # Classification block
-        x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
-        x = layers.Dense(classes, \
-                        activation='softmax', \
-                        name='predictions')(x)
-    else:
-        assert(False)
-        if pooling == 'avg':
-            x = layers.GlobalAveragePooling2D()(x)
-        elif pooling == 'max':
-            x = layers.GlobalMaxPooling2D()(x)
+    # From this point this differs from inception_v3_keras_application.py
+    #
+    # Fully Connected Softmax Layer
+    '''
+    x_fc = AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
+    x_fc = Flatten(name='flatten')(x_fc)
+    x_fc = Dense(1000, \
+                activation='softmax', \
+                name='predictions')(x_fc)
+    # Create model
+    model = Model(img_input, x_fc)
+    '''
+    x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
+    x = layers.Dense(1000, \
+                    activation='softmax', \
+                    name='predictions')(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
@@ -451,37 +398,61 @@ def InceptionV3(include_top=True,
         inputs = get_source_inputs(input_tensor)
     else:
         inputs = img_input
-    # Create model.
+        
     print("Creating model ...")
     model = models.Model(inputs, x, name='inception_v3')
+    
+    # Load ImageNet pre-trained data 
 
-    # Load weights.
-    #get_file() is in file
-    #/home/rm/anaconda3/envs/tensorflow/lib/python3.6/site-packages/keras/utils/data_utils.py
-    #fileis downloaded only if not already present in:
-        # `~/.keras/datasets/`
+    # --------------------------------------
+    #inception_v3_kras_application.py loads data from    
+    WEIGHTS_PATH = (
+        'https://github.com/fchollet/deep-learning-models/'
+        'releases/download/v0.5/'
+        'inception_v3_weights_tf_dim_ordering_tf_kernels.h5')
+#        WEIGHTS_PATH_NO_TOP = (
+#            'https://github.com/fchollet/deep-learning-models/'
+#            'releases/download/v0.5/'
+#            'inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5')
+
+    # Use the same
+    # --------------------------------------
+#    model.load_weights('imagenet_models/inception_v3_weights_th_dim_ordering_th_kernels.h5')
     print("Loading pre-trained weights ...")
-    if weights == 'imagenet':
-        if include_top:
-            weights_path = keras_utils.get_file(
-                                'inception_v3_weights_tf_dim_ordering_tf_kernels.h5',
-                                WEIGHTS_PATH,
-                                cache_subdir='models',
-                                file_hash='9a0d58056eeedaa3f26cb7ebd46da564')
-        else:
-            assert(False)
-            weights_path = keras_utils.get_file(
-                                'inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5',
-                                WEIGHTS_PATH_NO_TOP,
-                                cache_subdir='models',
-                                file_hash='bcbd6486424b2319ff4ef7d526e38f63')
-        model.load_weights(weights_path)
-    elif weights is not None:
-        assert(False)
-        model.load_weights(weights)
+    weights_path = keras_utils.get_file(
+                        'inception_v3_weights_tf_dim_ordering_tf_kernels.h5',
+                        WEIGHTS_PATH,
+                        cache_subdir='models',
+                        file_hash='9a0d58056eeedaa3f26cb7ebd46da564')
+    model.load_weights(weights_path)
+    
+    # Truncate and replace softmax layer for transfer learning
+    # Cannot use model.layers.pop() since model is not of Sequential() type
+    # The method below works since pre-trained weights are stored in layers but not in the model
+    '''
+    x_newfc = AveragePooling2D((8, 8), strides=(8, 8), name='avg_pool')(x)
+    x_newfc = Flatten(name='flatten')(x_newfc)
+    x_newfc = Dense(num_classes, \
+                    activation='softmax', \
+                    name='predictions')(x_newfc)
+    name='predictions'
+    print("DONE: ", name)
+    # Create another model with our customized softmax
+    model = Model(img_input, x_newfc)
+    print("New Model Created.")
+    
+    # Learning rate is changed to 0.001
+    sgd = SGD(lr=1e-3, decay=1e-6, momentum=0.9, nesterov=True)
+    model.compile(optimizer=sgd, \
+                  loss='categorical_crossentropy',\
+                  metrics=['accuracy'])
+    print("New Model Compiled.")
+    '''
+    return model 
 
-    return model
-
+import keras.applications.imagenet_utils as imagenet_utils
+from keras.applications.imagenet_utils import decode_predictions
+#from keras_applications.imagenet_utils import _obtain_input_shape
 
 def preprocess_input(x):
     """Preprocesses a numpy array encoding a batch of images.
@@ -494,17 +465,47 @@ def preprocess_input(x):
     """
     return imagenet_utils.preprocess_input(x, mode='tf')
 
-######################################################
-#RM
-    #The following block was copied from 
-    #/home/rm/github_fchollet_models/inception_v3/inception_v3_DEPRECATED.py
-    #inception_v3_DEPRECATED.py is inception_v3.py moved from ../ and renamed.
-######################################################
 if __name__ == '__main__':
+    '''
+    # Example to fine-tune on 3000 samples from Cifar10
+
+    from sklearn.metrics import log_loss
+    from load_cifar10 import load_cifar10_data
+    
+    img_rows, img_cols = 299, 299 # Resolution of inputs
+    channel = 3
+    num_classes = 10 
+    batch_size = 16 
+    nb_epoch = 10
+
+    # Load Cifar10 data. Please implement your own load_data() module for your own dataset
+    X_train, Y_train, X_valid, Y_valid = load_cifar10_data(img_rows, img_cols)
+
+    # Load our model
+    model = inception_v3_model(img_rows, img_cols, channel, num_classes)
+
+    # Start Fine-tuning
+    model.fit(X_train, Y_train,
+              batch_size=batch_size,
+              nb_epoch=nb_epoch,
+              shuffle=True,
+              verbose=1,
+              validation_data=(X_valid, Y_valid),
+              )
+
+    # Make predictions
+    predictions_valid = model.predict(X_valid, batch_size=batch_size, verbose=1)
+
+    # Cross-entropy loss score
+    score = log_loss(Y_valid, predictions_valid)
+    '''
     import numpy as np
     from keras.preprocessing import image
 
-    model = InceptionV3(include_top=True, weights='imagenet')
+    img_rows, img_cols = 299, 299 # Resolution of inputs
+    channel = 3
+    model = InceptionV3(img_rows, img_cols, channel, \
+                        include_top=True, weights='imagenet')
 
     img_path = '/home/rm/tmp/Images/cat01.jpg'         #'elephant.jpg'
     img = image.load_img(img_path, target_size=(299, 299))
@@ -514,8 +515,7 @@ if __name__ == '__main__':
     x = preprocess_input(x)
 
     preds = model.predict(x)
-    print('\nPredicted:')
-    from pprint import pprint as pp
-    pp(decode_predictions(preds)[0])
+    print('Predicted:', decode_predictions(preds))
     
     print("\n\tDONE: ", __file__)
+

@@ -9,6 +9,9 @@ and that the input preprocessing function is also different (same as Xception).
 
 - [Rethinking the Inception Architecture for Computer Vision](http://arxiv.org/abs/1512.00567)
 
+@RM
+    This file is inception_v3.py moved from ../ and renamed.
+
 """
 from __future__ import print_function
 from __future__ import absolute_import
